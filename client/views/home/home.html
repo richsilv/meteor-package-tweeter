@@ -1,0 +1,13 @@
+<template name="Home">
+  <h2>Popular Packages</h2>
+  <table>
+  	<thead>
+  		<tr><th>Package Name</th><th>Description</th><th>Downloads</th></tr>
+  	</thead>
+  	<tbody>
+  		{{#each packages}}
+  			<tr><td>{{this.name}}</td><td>{{this.description}}</td><td>{{this.installCount}}</td></tr>
+  		{{/each}}
+  	</tbody>
+  </table>
+</template>
