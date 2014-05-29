@@ -1,17 +1,17 @@
 var keyLevels = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+var remote = DDP.connect('https://atmosphere.meteor.com');
+var heartbeatOutstanding = false;
+var sub, localHost = (Meteor.absoluteUrl() === 'http://localhost:3000/');
+
+function subFunc() {
+	if (sub) sub.stop();
+	sub = remote.subscribe('allPackages');
+};
+sub = remote.subscribe('allPackages');
+
+Packages = new Meteor.Collection('packages', {connection: remote});
 
 Meteor.startup(function() {
-	var remote = DDP.connect('https://atmosphere.meteor.com');
-	var heartbeatOutstanding = false;
-	var sub;
-
-	function subFunc() {
-		if (sub) sub.stop();
-		sub = remote.subscribe('allPackages');
-	};
-	sub = remote.subscribe('allPackages');
-
-	Packages = new Meteor.Collection('packages', {connection: remote});
 
 	twitterCredentials = SecureData.findOne({name: "twitterCredentials"});
 
@@ -22,14 +22,16 @@ Meteor.startup(function() {
 				PackageTracker.insert({name: doc.name, installCount: doc.installCount});
 				var tweetString = ("New Package: " + doc.name + ', ' + doc.description).slice(0,140);
 				console.log(tweetString);
-				twitterSendTweet(tweetString);
+				if (!localHost) twitterSendTweet(tweetString);
 			}
 			else if (doc.installCount > thisPackage.installCount) {
+				console.log(doc.name, "has new downloads");
 				_.each(keyLevels, function(level) {
+					console.log("checking", level);
 					if (doc.installCount >= level && thisPackage.installCount < level) {
 						var tweetString = "Package '" + doc.name + "'' has reached " + level.toString() + " downloads!";
 						console.log(tweetString);
-						twitterSendTweet(tweetString);
+						if (!localHost) twitterSendTweet(tweetString);
 						PackageTracker.update(thisPackage, {$set: {installCount: doc.installCount}});
 					}
 				})
