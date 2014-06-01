@@ -59,7 +59,7 @@ function checkBounds(package, newCount) {
 	else {
 		keyLevels.forEach(function(level) {
 			if (package.installCount < level && newCount >= level) {
-				var tweetString = "Package '" + package.name + "' has reached " + level.toString() + " downloads!";
+				var tweetString = "Package '" + package.name + "' has reached " + level.toString() + " downloads! https://atmospherejs.com/package/" + package.name;
 				console.log(tweetString);
 				if (!localHost) twitterSendTweet(tweetString);
 			}

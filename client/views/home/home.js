@@ -49,6 +49,7 @@ function showMoreVisible() {
             target.data('visible', true);
             scrollCount.value += SCROLL_INCREMENT;
             scrollCount.dep.changed();
+            console.log("loading data...");
         }
     } else {
         if (target.data('visible')) {
