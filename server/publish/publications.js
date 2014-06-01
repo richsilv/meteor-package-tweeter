@@ -1,12 +1,3 @@
-Meteor.publish('packages', function() {
-	return Packages.find({});
-});
-Meteor.publish('installs', function() {
-	return Installs.find({});
-});
-Meteor.publish('packagetracker', function() {
-	return PackageTracker.find({});
-});
-Meteor.publish('installslocal', function() {
-	return InstallsLocal.find({});
+Meteor.publish('packagetracker', function(n) {
+	return PackageTracker.find({}, {sort: {installCount: -1}, limit: n});
 });
