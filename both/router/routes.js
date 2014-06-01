@@ -17,7 +17,7 @@ Router.map(function () {
   this.route('home', {
   	path: '/',
   	waitOn: function() {
-  		return Meteor.subscribe('packages');
+  		return Meteor.subscribe('packagetracker');
   	}
   })
 });

@@ -11,9 +11,9 @@ Template.Home.events({
 });
 
 Template.Home.helpers({
-  packages: function() {
-    if (Packages.find().count() > 300)
-      return Packages.find({}, {sort: {installCount: -1}, limit:50, reactive: false});
+  packagetracker: function() {
+    if (PackageTracker.find().count() > 50)
+      return PackageTracker.find({}, {sort: {installCount: -1}, limit:50, reactive: false});
     else
       return [];
   }

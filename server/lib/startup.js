@@ -1,72 +1,89 @@
-var keyLevels = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
-var remote = DDP.connect('https://atmosphere.meteor.com');
-var heartbeatOutstanding = false;
-var sub, localHost = (Meteor.absoluteUrl() === 'http://localhost:3000/');
+Subs = {}, remoteString = "DUMMY";
 
-function subFunc() {
-	if (sub) sub.stop();
-	sub = remote.subscribe('allPackages');
-};
-sub = remote.subscribe('allPackages');
+remote = DDP.connect('https://atmospherejs.com');
 
 Packages = new Meteor.Collection('packages', {connection: remote});
+Counts = new Meteor.Collection('counts', {connection: remote});
+
+var keyLevels = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+var heartbeatOutstanding = false
+var localHost = (Meteor.absoluteUrl() === 'http://localhost:3000/');
+
+function subFunc() {
+	var subHolder = [], intervalHandle, subNum;
+	var localIds = PackageTracker.find({}, {fields: {_id: true}}).map(function(doc) {return doc._id});
+	Packages.find({_id: {$nin: localIds}}).forEach(function(doc) {
+		var thisPackage = PackageTracker.findOne({name: doc.metadata.name});
+		if (!thisPackage) {
+			PackageTracker.insert({name: doc.metadata.name, description: doc.metadata.description, git: doc.metadata.git, installCount: 0});
+			var tweetString = ("New Package: " + doc.metadata.name + ', ' + doc.metadata.description).slice(0,140);
+			console.log(tweetString);
+			if (!localHost) twitterSendTweet(tweetString);
+		}	
+	});
+
+	PackageTracker.find({}).forEach(function(doc) {
+		var thisSub = remote.subscribe('packageInstalls', doc.name);
+		subHolder.push({name: doc.name, sub: thisSub});
+	});
+
+	subNum = subHolder.length;
+	console.log("Waiting for subscriptions on " + subNum.toString() + " packages");
+
+	intervalHandle = Meteor.setInterval(function() {
+		var thisPackage, oldPackage, thisCount, count = 0;
+		for (var i = 0; i < subHolder.length; i++) {
+			thisPackage = subHolder[i];
+			if (thisPackage && thisPackage.sub.ready()) {
+				thisCount = Counts.findOne({_id: 'package-installs-' + thisPackage.name}),
+				oldPackage = PackageTracker.findOne({name: thisPackage.name});
+				checkBounds(oldPackage, thisCount.count);
+				console.log("Updating install count for " + thisPackage.name + " to " + (thisCount ? thisCount.count : 0).toString());
+				PackageTracker.update({name: thisPackage.name}, {$set: {installCount: thisCount ? thisCount.count: 0}});
+				thisPackage.sub.stop();
+				subHolder[i] = null;
+			}
+			else if (thisPackage) count += 1;
+		}
+		if (!count) {
+			console.log("Clearing Interval Job");
+			Meteor.clearInterval(intervalHandle);
+		}
+		console.log("Still " + count.toString() + " packages left to check...");
+	}, 5000);
+
+};
+
+function checkBounds(package, newCount) {
+	if (!newCount || package.installCount === newCount) return false;
+	else {
+		keyLevels.forEach(function(level) {
+			if (package.installCount < level && newCount >= level) {
+				var tweetString = "Package '" + package.name + "' has reached " + level.toString() + " downloads!";
+				console.log(tweetString);
+				if (!localHost) twitterSendTweet(tweetString);
+			}
+		})
+	}
+}
 
 Meteor.startup(function() {
 
 	twitterCredentials = SecureData.findOne({name: "twitterCredentials"});
+	remoteString = SecureData.findOne({name: 'remoteString'}) ? SecureData.findOne({name: 'remoteString'}).value : "DUMMY";
 
-	Packages.find().observe({
-		added: function(doc) {
-			var thisPackage = PackageTracker.findOne({name: doc.name});
-			if (!thisPackage) {
-				PackageTracker.insert({name: doc.name, installCount: doc.installCount});
-				var tweetString = ("New Package: " + doc.name + ', ' + doc.description).slice(0,140);
-				console.log(tweetString);
-				if (!localHost) twitterSendTweet(tweetString);
-			}
-			else if (doc.installCount > thisPackage.installCount) {
-				console.log(doc.name, "has new downloads");
-				_.each(keyLevels, function(level) {
-					console.log("checking", level);
-					if (doc.installCount >= level && thisPackage.installCount < level) {
-						var tweetString = "Package '" + doc.name + "'' has reached " + level.toString() + " downloads!";
-						console.log(tweetString);
-						if (!localHost) twitterSendTweet(tweetString);
-						PackageTracker.update(thisPackage, {$set: {installCount: doc.installCount}});
-					}
-				})
-			}
-		},
-		changed: function(doc) {
-			console.log("change detected in package " + doc.name);
-			var thisPackage = PackageTracker.findOne({name: doc.name});
-			if (!thisPackage) {
-				PackageTracket.insert({name: doc.name, installCount: doc.installCount});
-				console.log(("New Package: " + doc.name + ', ' + doc.description).slice(0,140));
-			}
-			else if (doc.installCount > thisPackage.installCount) {
-				_.each(keyLevels, function(level) {
-					if (doc.installCount >= level && thisPackage.installCount < level) {
-						console.log("Package " + doc.name + " has reached " + level.toString() + " downloads!");
-						PackageTracker.update(thisPackage, {$set: {installCount: doc.installCount}});
-					}
-				})
-			}
-		}
-	});
+	Subs.packages = remote.subscribe('search', '*', 10000);
 
-	Meteor.setInterval(function () {
-	  if (! heartbeatOutstanding) {
-	    remote.call("heartbeat", function () {
-	      heartbeatOutstanding = false;
-	    });
-	    heartbeatOutstanding = true;
-	  }
-	}, 3000);
+	if (!Meteor.settings.noUpdate) Meteor.setInterval(subFunc, 300000);
 
-	Meteor.setInterval(subFunc, 60000);
-
-	remote.onReconnect = function () {
-	  console.log("RECONNECTING REMOTE");
-	};
 });
+
+Meteor.methods({
+	subFunc: function() {
+		subFunc();
+		return true;
+	},
+	showCounts: function() {
+		return Counts.find().count();
+	}
+})
