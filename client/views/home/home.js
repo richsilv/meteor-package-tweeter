@@ -41,7 +41,7 @@ function showMoreVisible() {
     var threshold, target = $('#showMoreResults');
     if (!target.length) return;
  
-    threshold = $(window).scrollTop() + $(window).height() - target.height();
+    threshold = $(window).scrollTop() + $(window).height() - target.height() + 10;
  
     if (target.offset().top < threshold) {
         if (!target.data('visible')) {
@@ -53,7 +53,7 @@ function showMoreVisible() {
         }
     } else {
         if (target.data('visible')) {
-            // console.log('target became invisible (below viewable arae)');
+            // console.log('target became invisible (below viewable area)');
             target.data('visible', false);
         }
     }        
