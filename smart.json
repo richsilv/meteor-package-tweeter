@@ -3,6 +3,7 @@
     "iron-router": {},
     "npm": {},
     "twit": {},
-    "zurb-foundation": {}
+    "zurb-foundation": {},
+    "kadira": {}
   }
 }

@@ -10,7 +10,7 @@ var heartbeatOutstanding = false
 var localHost = (Meteor.absoluteUrl() === 'http://localhost:3000/');
 
 function subFunc() {
-	var subHolder = [], intervalHandle, subNum;
+	var subHolder = [], intervalHandle, subNum, waitUntil = (new Date()).getTime() + 180000;
 	var localIds = PackageTracker.find({}, {fields: {_id: true}}).map(function(doc) {return doc._id});
 	Packages.find({_id: {$nin: localIds}}).forEach(function(doc) {
 		var thisPackage = PackageTracker.findOne({name: doc.metadata.name});
@@ -45,7 +45,7 @@ function subFunc() {
 			}
 			else if (thisPackage) count += 1;
 		}
-		if (!count) {
+		if (!count || (new Date()).getTime() > waitUntil) {
 			console.log("Clearing Interval Job");
 			Meteor.clearInterval(intervalHandle);
 		}
@@ -74,7 +74,7 @@ Meteor.startup(function() {
 
 	Subs.packages = remote.subscribe('search', '*', 10000);
 
-	if (!Meteor.settings.noUpdate) Meteor.setInterval(subFunc, 300000);
+	if (!Meteor.settings.noUpdate) Meteor.setInterval(subFunc, 1500000);
 
 });
 
