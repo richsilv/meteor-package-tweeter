@@ -5,7 +5,7 @@ remote = DDP.connect('https://atmospherejs.com');
 Packages = new Meteor.Collection('packages', {connection: remote});
 Counts = new Meteor.Collection('counts', {connection: remote});
 
-var keyLevels = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
+var keyLevels = [50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000];
 var heartbeatOutstanding = false
 var localHost = (Meteor.absoluteUrl() === 'http://localhost:3000/');
 
